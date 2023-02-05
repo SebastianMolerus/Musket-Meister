@@ -1,0 +1,11 @@
+#version 330 core
+out vec4 FragColor;
+
+in vec2 tex_pos;
+
+uniform sampler2D grass;
+
+void main()
+{
+	FragColor = texture(grass, tex_pos);
+};
