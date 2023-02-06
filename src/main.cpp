@@ -1,6 +1,7 @@
 #include <iostream>
 #include <array>
 
+#include <mov.h>
 #include <utils.h>
 #include <stb_image.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -14,6 +15,8 @@ glm::mat4 g_view_matrix{1.0f};
 
 glm::vec3 g_mouse_world_pos{1.0f};
 
+bool g_seek{true};
+
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	double const x_ndc{ (xpos / g_window_width) * 2.0f - 1 };
@@ -26,6 +29,18 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 	auto const cam_pos = g_cam.get_camera_pos();
 	const float t = (-glm::dot(plane_normal, cam_pos)) / (glm::dot(plane_normal, ray_world));
 	g_mouse_world_pos = cam_pos + t * ray_world;
+}
+
+void mouse_click_callback(GLFWwindow*, int button, int, int)
+{
+	if (button == GLFW_MOUSE_BUTTON_1)
+	{
+		g_seek = true;
+	}
+	else if (button == GLFW_MOUSE_BUTTON_2)
+	{
+		g_seek = false;
+	}
 }
 
 GLFWwindow* init()
@@ -48,8 +63,8 @@ GLFWwindow* init()
 	// glfwSwapInterval( 0 );
 
 	glfwSetCursorPosCallback(window, mouse_callback);
-
-
+	glfwSetMouseButtonCallback(window, mouse_click_callback);
+	
 	stbi_set_flip_vertically_on_load(true);
 
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -161,8 +176,18 @@ int main()
 		#endif
 	}
 
+	// Units
+	unsigned army_size = 25;
+	unsigned army_id = create_army(army_size);
+	set_formation(army_id, formation::line_along_x_towards_y, glm::vec2{0.0f, 0.0f}, 1.1f);
+
+	double bt{};
 	while (!glfwWindowShouldClose(window))
 	{
+		double ct = glfwGetTime();
+		double dt = ct - bt;
+		bt = ct;
+		
 		process_input(window);
 
 		g_view_matrix = g_cam.calc_view_matrix();
@@ -182,15 +207,29 @@ int main()
 		}
 
 		{
-			auto model = glm::mat4{1.0f};
-			model = glm::translate(model, g_mouse_world_pos);
 			unit_shader.use_program();
 			unit_shader.set_uniform("view", g_view_matrix);
-			unit_shader.set_uniform("model", model);
 			unit_shader.set_uniform("projection", projection);
 			unit_shader.set_uniform("point_color", glm::vec3{ 0.0f, 1.0f, 0.0f });
 			unit_buff.bind_vao();
-			glDrawArrays(GL_POINTS, 0, unit_vertixes.size());
+
+			if(g_seek)
+				kinematic_seek(army_id, glm::vec2{g_mouse_world_pos});
+			else
+				kinematic_flee(army_id, glm::vec2{g_mouse_world_pos});
+
+			update_army(army_id, 0.4f * dt);
+
+			auto const army_position = get_position(army_id);
+			auto const army_orientation = get_orientation(army_id);
+			for(unsigned i=0;i<army_size;++i)
+			{
+				glm::mat4 model{1.0f};
+				model = glm::translate(model, glm::vec3{army_position[i].x, army_position[i].y, 0.0f});
+				model = glm::rotate(model, army_orientation[i] - glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
+				unit_shader.set_uniform("model", model);
+				glDrawArrays(GL_POINTS, 0, unit_vertixes.size());
+			}
 		}
 
 		glfwSwapBuffers(window);
