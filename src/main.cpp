@@ -17,7 +17,17 @@ glm::vec3 g_mouse_world_pos{1.0f};
 
 glm::mat4 const g_projection_matrix{g_cam.get_projection_matrix()};
 
-bool g_switch{true};
+enum class ai_mode
+{
+	kinematic_seek,
+	kinematic_flee,
+	kinematic_wander,
+	kinematic_arrive,
+
+	dynamic_seek,
+	dynamic_flee,
+	dynamic_arrive
+} g_ai_mode;
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
@@ -35,13 +45,34 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 
 void mouse_click_callback(GLFWwindow*, int button, int, int)
 {
-	if (button == GLFW_MOUSE_BUTTON_1)
+	
+}
+
+void keyboard_key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	switch(key)
 	{
-		g_switch = true;
-	}
-	else if (button == GLFW_MOUSE_BUTTON_2)
-	{
-		g_switch = false;
+		case GLFW_KEY_E:
+			g_ai_mode = ai_mode::kinematic_seek;
+		break;
+		case GLFW_KEY_R:
+			g_ai_mode = ai_mode::kinematic_flee;
+		break;
+		case GLFW_KEY_T:
+			g_ai_mode = ai_mode::kinematic_wander;
+		break;
+		case GLFW_KEY_Y:
+			g_ai_mode = ai_mode::kinematic_arrive;
+		break;
+		case GLFW_KEY_U:
+			g_ai_mode = ai_mode::dynamic_seek;
+		break;
+		case GLFW_KEY_I:
+			g_ai_mode = ai_mode::dynamic_flee;
+		break;
+		case GLFW_KEY_O:
+			g_ai_mode = ai_mode::dynamic_arrive;
+		break;
 	}
 }
 
@@ -66,6 +97,7 @@ GLFWwindow* init()
 
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetMouseButtonCallback(window, mouse_click_callback);
+	glfwSetKeyCallback(window, keyboard_key_callback);
 	
 	stbi_set_flip_vertically_on_load(true);
 
@@ -227,14 +259,24 @@ struct green_circle
 
 struct arrow
 {
+	enum class arrow_color
+	{	
+		red,
+		green,
+		blue
+	};
+
 	std::array<float, 8> const m_vertices{-0.2f, 0.8f,
 										   0.0f, 1.0f,
 										   0.0f, 1.0f,
 										   0.2f, 0.8f};
 	shader m_shader;
 	vertex_buffer m_buffer;
-	arrow()
-	:m_shader{"./shaders/line_vertex.txt", "./shaders/line_fragment.txt"}
+	arrow_color m_color;
+
+	arrow(arrow_color color)
+	:m_shader{"./shaders/line_vertex.txt", "./shaders/line_fragment.txt"},
+	m_color{color}
 	{
 		m_buffer.fill_array_buffer(m_vertices.data(), m_vertices.size() * sizeof(float));
 		m_buffer.set_vertex_attrib_pointers("2");
@@ -243,13 +285,23 @@ struct arrow
 	void prepare()
 	{
 		m_shader.use_program();
-
 		m_shader.set_uniform("view", g_view_matrix);
 		m_shader.set_uniform("projection", g_projection_matrix);
-		m_shader.set_uniform("line_color", glm::vec3{1.0f, 0.0f, 0.0f});
-
+		glm::vec3 c{};
+		switch(m_color)
+		{
+			case arrow_color::red:
+				c = glm::vec3{1.0f, 0.0f, 0.0f};
+			break;
+			case arrow_color::green:
+				c = glm::vec3{0.0f, 1.0f, 0.0f};
+			break;
+			case arrow_color::blue:
+				c = glm::vec3{0.0f, 0.0f, 1.0f};
+			break;
+		}
+		m_shader.set_uniform("line_color", c);
 		m_buffer.bind_vao();
-		
 	}
 
 	void draw(glm::mat4 const& model)
@@ -269,10 +321,11 @@ int main()
 
 	background_texture background_tex;
 	green_circle unit;
-	arrow velocity_arrow;
+	arrow velocity_arrow{arrow::arrow_color::green};
+	arrow steering_linear_arror{arrow::arrow_color::red};
 
 	// Units
-	unsigned army_size = 100;
+	unsigned army_size = 1;
 	unsigned army_id = create_army(army_size);
 	set_formation(army_id, formation::line_along_x_towards_y, glm::vec2{0.0f, 0.0f}, 2.0f);
 
@@ -280,7 +333,7 @@ int main()
 	while (!glfwWindowShouldClose(window))
 	{
 		double ct = glfwGetTime();
-		double dt = ct - bt;
+		double const dt = ct - bt;
 		bt = ct;
 		
 		process_input(window);
@@ -296,10 +349,30 @@ int main()
 
 		background_tex.prepare_and_draw();
 
-		if(g_switch)
-			kinematic_seek(army_id, glm::vec2{g_mouse_world_pos});
-		else
-			kinematic_wander(army_id, glm::vec2{g_mouse_world_pos});
+		switch(g_ai_mode)
+		{
+		case ai_mode::kinematic_seek:
+			kinematic_seek(army_id, g_mouse_world_pos);
+		break;
+		case ai_mode::kinematic_flee:
+			kinematic_flee(army_id, g_mouse_world_pos);
+		break;
+		case ai_mode::kinematic_wander:
+			kinematic_wander(army_id, g_mouse_world_pos);
+		break;
+		case ai_mode::kinematic_arrive:
+			kinematic_arrive(army_id, g_mouse_world_pos);
+		break;
+		case ai_mode::dynamic_seek:
+			dynamic_seek(army_id, g_mouse_world_pos);
+		break;
+		case ai_mode::dynamic_flee:
+			dynamic_flee(army_id, g_mouse_world_pos);
+		break;
+		case ai_mode::dynamic_arrive:
+			dynamic_arrive(army_id, g_mouse_world_pos);
+		break;
+		}
 
 		update_army(army_id, 2.0f * dt);
 
@@ -318,10 +391,26 @@ int main()
 		velocity_arrow.prepare();
 		for(unsigned i=0;i<army_size;++i)
 		{
+			if(glm::length(army_velocity[i]) > 0.0f)
+			{
 			glm::mat4 model{1.0f};
 			model = glm::translate(model, glm::vec3{army_position[i].x, army_position[i].y, 0.0f});
 			model = glm::rotate(model, atan2(army_velocity[i].y, army_velocity[i].x) - glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
 			velocity_arrow.draw(model);
+			}
+		}
+
+		auto const army_steering_linear = get_steering_linear(army_id);
+		steering_linear_arror.prepare();
+		for(unsigned i=0;i<army_size;++i)
+		{
+			if(glm::length(army_steering_linear[i]) > 0.0f)
+			{
+				glm::mat4 model{1.0f};
+				model = glm::translate(model, glm::vec3{army_position[i].x, army_position[i].y, 0.0f});
+				model = glm::rotate(model, atan2(army_steering_linear[i].y, army_steering_linear[i].x) - glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
+				steering_linear_arror.draw(model);
+			}
 		}
 
 		// #################################################################

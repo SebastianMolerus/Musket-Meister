@@ -61,15 +61,17 @@ namespace
         return ARMIES.m_steering[army_id].m_angular;
     }
 
-    // returns angle between vector and x axis
-    float x_target_angle_rad(float current, glm::vec2 target)
+    // returns angle(rad) between vector and x axis
+    float x_vector_angle_rad(float const current, glm::vec2 const vector)
     {
-        if(target.length() > 0)
+        if(glm::length(vector) > 0)
         {
-            return atan2(target.y, target.x);
+            return atan2(vector.y, vector.x);
         }
         return current;
     }
+
+    constexpr glm::vec2 ZERO = glm::vec2{0.0f, 0.0f};
 } // Anonymous NS
 
 unsigned create_army(unsigned size)
@@ -123,6 +125,8 @@ void update_army(unsigned army_id, float dt)
 
     auto const army_size = ARMY_INFO[army_id].m_army_size;
 
+    constexpr float max_velocity = 3.0f;
+
     for(unsigned i=0;i<army_size;++i)
     {
         p[i] += v[i] * dt;
@@ -130,6 +134,14 @@ void update_army(unsigned army_id, float dt)
 
         v[i] += sl[i] * dt;
         r[i] += sa[i] * dt;
+
+        // this works for dynamic only
+        // because kinematic version updated position
+        // at this point
+        if(glm::length(v[i]) > max_velocity)
+        {
+            v[i] = glm::normalize(v[i]) * max_velocity;
+        }
     }
 }
 
@@ -157,45 +169,78 @@ glm::vec2* get_velocity(unsigned army_id)
     return ARMIES.m_data[army_id].m_velocity;
 }
 
-void kinematic_seek(unsigned army_id, glm::vec2 target)
+void kinematic_seek(unsigned army_id, glm::vec2 target_pos)
 {
     ARMY_EXIST(army_id);
+
     auto v = get_velocity(army_id);
     auto o = get_orientation(army_id);
+
     auto const p = get_position(army_id);
     auto const army_size = ARMY_INFO[army_id].m_army_size;
 
     for(unsigned i=0;i<army_size;++i)
     {
-        v[i] = target - p[i];
+        v[i] = target_pos - p[i];
         v[i] = glm::normalize(v[i]);
 
-        o[i] = x_target_angle_rad(o[i], v[i]);
+        o[i] = x_vector_angle_rad(o[i], v[i]);
     }
 }
 
-void kinematic_flee(unsigned army_id, glm::vec2 target)
+void kinematic_flee(unsigned army_id, glm::vec2 target_pos)
 {
     ARMY_EXIST(army_id);
+
     auto v = get_velocity(army_id);
     auto o = get_orientation(army_id);
+
     auto const p = get_position(army_id);
     auto const army_size = ARMY_INFO[army_id].m_army_size;
 
     for(unsigned i=0;i<army_size;++i)
     {
-        v[i] = p[i] - target;
+        v[i] = p[i] - target_pos;
         v[i] = glm::normalize(v[i]);
 
-        o[i] = x_target_angle_rad(o[i], v[i]);
+        o[i] = x_vector_angle_rad(o[i], v[i]);
     }
 }
 
-void kinematic_wander(unsigned army_id, glm::vec2 target)
+void kinematic_arrive(unsigned army_id, glm::vec2 target_pos)
 {
     ARMY_EXIST(army_id);
+
+    constexpr float radius{0.5f};
+    constexpr float max_speed{3.0f};
+
+    auto v = get_velocity(army_id);
+
+    auto const p = get_position(army_id);
+    auto const army_size = ARMY_INFO[army_id].m_army_size;
+
+    for(unsigned i=0;i<army_size;++i)
+    {
+        v[i] = target_pos - p[i];
+        if(glm::length(v[i]) < radius)
+        {
+            v[i] = ZERO;
+            continue;
+        }
+
+        if(glm::length(v[i]) > max_speed)
+        {
+            v[i] = glm::normalize(v[i]) * max_speed;
+        }
+    }
+}
+void kinematic_wander(unsigned army_id, glm::vec2 target_pos)
+{
+    ARMY_EXIST(army_id);
+
     auto v = get_velocity(army_id);
     auto r = get_rotation(army_id);
+
     auto const o = get_orientation(army_id);
     auto const army_size = ARMY_INFO[army_id].m_army_size;
 
@@ -205,4 +250,85 @@ void kinematic_wander(unsigned army_id, glm::vec2 target)
 
         r[i] = (rand()%2) - (rand()%2);
     }
+}
+
+void dynamic_seek(unsigned army_id, glm::vec2 target_pos)
+{
+    ARMY_EXIST(army_id);
+
+    constexpr float max_acc = 4.0f;
+
+    auto sl = get_steering_linear(army_id);
+
+    auto const p = get_position(army_id);
+    auto const army_size = ARMY_INFO[army_id].m_army_size;
+
+    for(unsigned i=0;i<army_size;++i)
+    {
+        sl[i] = glm::normalize(target_pos - p[i]);
+        sl[i] *= max_acc;
+    }
+}
+
+void dynamic_flee(unsigned army_id, glm::vec2 target_pos)
+{
+    ARMY_EXIST(army_id);
+
+    constexpr float max_acc = 4.0f;
+
+    auto sl = get_steering_linear(army_id);
+
+    auto const p = get_position(army_id);
+    auto const army_size = ARMY_INFO[army_id].m_army_size;
+
+    for(unsigned i=0;i<army_size;++i)
+    {
+        sl[i] = glm::normalize(p[i] - target_pos);
+        sl[i] *= max_acc;
+    }
+}
+
+void dynamic_arrive(unsigned army_id, glm::vec2 target_pos)
+{
+    ARMY_EXIST(army_id);
+
+    constexpr float slow_radius{2.0f};
+    constexpr float max_speed{3.0f};
+    constexpr float max_acceleration{3.0f};
+
+    auto sl = get_steering_linear(army_id);
+
+    auto const v = get_velocity(army_id);
+    auto const p = get_position(army_id);
+    auto const army_size = ARMY_INFO[army_id].m_army_size;
+
+    for(unsigned i=0;i<army_size;++i)
+    {
+        auto const dir = target_pos - p[i];
+        float const distance = glm::length(dir);
+
+        // closer to target, lower speed
+        float target_speed{};
+        if(distance > slow_radius)
+        {
+            target_speed = max_speed;
+        }
+        else
+        {
+            target_speed = max_speed * distance / slow_radius;
+        }
+        auto const goal_velocity = glm::normalize(dir) * target_speed;
+
+        sl[i] = goal_velocity - v[i];
+
+        if(glm::length(sl[i]) > max_acceleration)
+        {
+            sl[i] = glm::normalize(sl[i]) * max_acceleration;
+        }
+    }
+}
+
+void align(unsigned army_id, glm::vec2 target_orientation)
+{
+    // TBD
 }

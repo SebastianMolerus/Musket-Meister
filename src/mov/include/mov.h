@@ -19,8 +19,15 @@ float* get_orientation(unsigned army_id);
 glm::vec2* get_steering_linear(unsigned army_id);
 glm::vec2* get_velocity(unsigned army_id);
 
-void kinematic_seek(unsigned army_id, glm::vec2 target);
-void kinematic_flee(unsigned army_id, glm::vec2 target);
-void kinematic_wander(unsigned army_id, glm::vec2 target);
+void kinematic_seek(unsigned army_id, glm::vec2 target_pos);
+void kinematic_flee(unsigned army_id, glm::vec2 target_pos);
+void kinematic_arrive(unsigned army_id, glm::vec2 target_pos);
+void kinematic_wander(unsigned army_id, glm::vec2 target_pos);
+
+void dynamic_seek(unsigned army_id, glm::vec2 target_pos);
+void dynamic_flee(unsigned army_id, glm::vec2 target_pos);
+void dynamic_arrive(unsigned army_id, glm::vec2 target_pos);
+
+void align(unsigned army_id, glm::vec2 target_orientation);
 
 #endif
