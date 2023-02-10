@@ -17,6 +17,9 @@ glm::vec3 g_mouse_world_pos{1.0f};
 
 glm::mat4 const g_projection_matrix{g_cam.get_projection_matrix()};
 
+glm::vec2 g_target_position{};
+glm::vec2 g_target_orientation{};
+
 enum class ai_mode
 {
 	kinematic_seek,
@@ -43,9 +46,18 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 	g_mouse_world_pos = cam_pos + t * ray_world;
 }
 
-void mouse_click_callback(GLFWwindow*, int button, int, int)
+
+void mouse_click_callback(GLFWwindow*, int button, int action, int)
 {
-	
+	if(button == GLFW_MOUSE_BUTTON_1 && action == GLFW_PRESS)
+	{
+		g_target_position = g_mouse_world_pos;
+	}
+
+	if(button == GLFW_MOUSE_BUTTON_1 && action == GLFW_RELEASE)
+	{
+		g_target_orientation = glm::normalize(glm::vec2{g_mouse_world_pos.x, g_mouse_world_pos.y} - g_target_position);
+	}
 }
 
 void keyboard_key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -323,6 +335,7 @@ int main()
 	green_circle unit;
 	arrow velocity_arrow{arrow::arrow_color::green};
 	arrow steering_linear_arror{arrow::arrow_color::red};
+	arrow user_arrow{arrow::arrow_color::blue};
 
 	// Units
 	unsigned army_size = 1;
@@ -370,7 +383,8 @@ int main()
 			dynamic_flee(army_id, g_mouse_world_pos);
 		break;
 		case ai_mode::dynamic_arrive:
-			dynamic_arrive(army_id, g_mouse_world_pos);
+			dynamic_arrive(army_id, g_target_position);
+			align(army_id, g_target_orientation);
 		break;
 		}
 
@@ -391,27 +405,27 @@ int main()
 		velocity_arrow.prepare();
 		for(unsigned i=0;i<army_size;++i)
 		{
-			if(glm::length(army_velocity[i]) > 0.0f)
-			{
 			glm::mat4 model{1.0f};
 			model = glm::translate(model, glm::vec3{army_position[i].x, army_position[i].y, 0.0f});
 			model = glm::rotate(model, atan2(army_velocity[i].y, army_velocity[i].x) - glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
 			velocity_arrow.draw(model);
-			}
 		}
 
 		auto const army_steering_linear = get_steering_linear(army_id);
 		steering_linear_arror.prepare();
 		for(unsigned i=0;i<army_size;++i)
 		{
-			if(glm::length(army_steering_linear[i]) > 0.0f)
-			{
-				glm::mat4 model{1.0f};
-				model = glm::translate(model, glm::vec3{army_position[i].x, army_position[i].y, 0.0f});
-				model = glm::rotate(model, atan2(army_steering_linear[i].y, army_steering_linear[i].x) - glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
-				steering_linear_arror.draw(model);
-			}
+			glm::mat4 model{1.0f};
+			model = glm::translate(model, glm::vec3{army_position[i].x, army_position[i].y, 0.0f});
+			model = glm::rotate(model, atan2(army_steering_linear[i].y, army_steering_linear[i].x) - glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
+			steering_linear_arror.draw(model);
 		}
+
+		user_arrow.prepare();
+		glm::mat4 model{1.0f};
+		model = glm::translate(model, glm::vec3{g_target_position, 0.1f});
+		model = glm::rotate(model, atan2(g_target_orientation.y, g_target_orientation.x) - glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
+		user_arrow.draw(model);
 
 		// #################################################################
 		

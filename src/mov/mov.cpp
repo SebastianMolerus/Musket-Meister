@@ -71,7 +71,26 @@ namespace
         return current;
     }
 
-    constexpr glm::vec2 ZERO = glm::vec2{0.0f, 0.0f};
+    glm::vec2 convert_to_vec2(float const angle_rad)
+    {
+        return {glm::cos(angle_rad), glm::sin(angle_rad)};
+    }
+
+    constexpr float PI = 3.1415f;
+
+    // maps rotation to -pi, pi interval.
+    float map_to_range(float rotation)
+    {
+        if(rotation > -PI && rotation < PI) return rotation;
+
+        while(rotation > PI)
+            rotation -= 2 * PI;
+
+        while(rotation < -PI)
+            rotation += 2 * PI;
+
+        return rotation;
+    }
 } // Anonymous NS
 
 unsigned create_army(unsigned size)
@@ -211,8 +230,8 @@ void kinematic_arrive(unsigned army_id, glm::vec2 target_pos)
 {
     ARMY_EXIST(army_id);
 
-    constexpr float radius{0.5f};
     constexpr float max_speed{3.0f};
+    constexpr float velocity_boost{4.0f};
 
     auto v = get_velocity(army_id);
 
@@ -222,11 +241,8 @@ void kinematic_arrive(unsigned army_id, glm::vec2 target_pos)
     for(unsigned i=0;i<army_size;++i)
     {
         v[i] = target_pos - p[i];
-        if(glm::length(v[i]) < radius)
-        {
-            v[i] = ZERO;
-            continue;
-        }
+
+        v[i] *= velocity_boost;
 
         if(glm::length(v[i]) > max_speed)
         {
@@ -246,7 +262,7 @@ void kinematic_wander(unsigned army_id, glm::vec2 target_pos)
 
     for(unsigned i=0;i<army_size;++i)
     {
-        v[i] = {glm::cos(o[i]), glm::sin(o[i])};
+        v[i] = convert_to_vec2(o[i]);
 
         r[i] = (rand()%2) - (rand()%2);
     }
@@ -295,6 +311,7 @@ void dynamic_arrive(unsigned army_id, glm::vec2 target_pos)
     constexpr float slow_radius{2.0f};
     constexpr float max_speed{3.0f};
     constexpr float max_acceleration{3.0f};
+    constexpr float acceleration_boost{10.0f};
 
     auto sl = get_steering_linear(army_id);
 
@@ -319,7 +336,15 @@ void dynamic_arrive(unsigned army_id, glm::vec2 target_pos)
         }
         auto const goal_velocity = glm::normalize(dir) * target_speed;
 
+        // sl will be opposite do v
+        // when we are close to the target
+        // but this value will be too small
+        // to lose that speed and we will start wiggling
+        // so...
         sl[i] = goal_velocity - v[i];
+
+        // ...we need to increase acceleration
+        sl[i] *= acceleration_boost;
 
         if(glm::length(sl[i]) > max_acceleration)
         {
@@ -330,5 +355,42 @@ void dynamic_arrive(unsigned army_id, glm::vec2 target_pos)
 
 void align(unsigned army_id, glm::vec2 target_orientation)
 {
-    // TBD
+    ARMY_EXIST(army_id);
+
+    constexpr float slow_radius{2.0f};
+    constexpr float max_rotation{3.0f};
+    constexpr float max_angular_steering{3.0f};
+
+    float* steering_angular = get_steering_angular(army_id);
+
+    float* const o = get_orientation(army_id);
+    float* const r = get_rotation(army_id);
+    auto const army_size = ARMY_INFO[army_id].m_army_size;
+    for(unsigned i=0;i<army_size;++i)
+    {
+        float goal_rotation =  x_vector_angle_rad(0.0f, target_orientation) - o[i];
+
+        //  -PI ... +PI
+        goal_rotation = map_to_range(goal_rotation);
+        float const rotation_size = glm::abs(goal_rotation);
+
+        float target_rotation{};
+        if(rotation_size > slow_radius )
+            target_rotation = max_rotation;
+        else
+        {
+            target_rotation = max_rotation * rotation_size / slow_radius;
+        }
+
+        target_rotation *= glm::sign(goal_rotation);
+
+        steering_angular[i] = target_rotation - r[i];
+        steering_angular[i] *= 10.0f; // same reason as for dynamic arrive
+
+        auto const steering_value = glm::abs(steering_angular[i]);
+        if(steering_value > max_angular_steering)
+        {
+            steering_angular[i] = glm::sign(steering_angular[i]) * max_angular_steering; 
+        }
+    }
 }
