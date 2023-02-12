@@ -44,4 +44,6 @@ void dyn_velocity_match(unsigned army_id, glm::vec2 target_velocity);
 // set orientation from own velocity
 void look_where_you_going(unsigned army_id);
 
+void wander(unsigned army_id);
+
 #endif

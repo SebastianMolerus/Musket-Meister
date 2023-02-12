@@ -35,7 +35,9 @@ enum class ai_mode
 
 	pursue,
 
-	velocity_match
+	velocity_match,
+
+	wander
 } g_ai_mode;
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
@@ -81,6 +83,9 @@ void keyboard_key_callback(GLFWwindow* window, int key, int scancode, int action
 		break;
 		case GLFW_KEY_P:
 			g_ai_mode = ai_mode::pursue;
+		break;
+		case GLFW_KEY_Q:
+			g_ai_mode = ai_mode::wander;
 		break;
 	}
 }
@@ -357,7 +362,7 @@ int main()
 	// Units
 	unsigned green_army_size = 1;
 	unsigned green_army_id = create_army(green_army_size);
-	set_formation(green_army_id, formation::line_along_x_towards_y, glm::vec2{0.0f, 0.0f});
+	set_formation(green_army_id, formation::line_along_x_towards_y, glm::vec2{0.0f, 0.0f}, 10.0f);
 
 	// Target
 	unsigned red_army_id = create_army(1);
@@ -415,6 +420,9 @@ int main()
 			// Green army will pursue red army
 			pursue(green_army_id, get_position(red_army_id)[0], get_velocity(red_army_id)[0]);
 			face(green_army_id, get_position(red_army_id)[0]);
+		break;
+		case ai_mode::wander:
+			wander(green_army_id);	
 		break;
 		}
 

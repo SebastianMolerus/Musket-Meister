@@ -2,9 +2,12 @@
 
 #include <array>
 #include <iostream>
+#include <map>
 
 namespace 
 {
+    constexpr unsigned ARMIES_MAX_SIZE = 10;
+
 	constexpr unsigned MEM_SIZE = 4096;
 	alignas(4) char MEMORY[MEM_SIZE];
 	char* MEMORY_PTR{ MEMORY };
@@ -15,6 +18,18 @@ namespace
 	    void* p = MEMORY_PTR;
 	    MEMORY_PTR += bytes;
 	    return p;
+    }
+
+    void* allocate_once(unsigned army_id, size_t bytes)
+    {
+        static std::map<unsigned, void*> reg;
+        if(reg[army_id] != nullptr)
+        {
+            return reg[army_id];
+        }
+        
+        reg[army_id] = allocate(bytes);
+        return reg[army_id];
     }
 
     struct kinematic_data
@@ -30,8 +45,6 @@ namespace
         glm::vec2* m_linear;
         float* m_angular;
     };
-
-    constexpr unsigned ARMIES_MAX_SIZE = 10;
 
     struct army
     {
@@ -90,6 +103,12 @@ namespace
             rotation += 2 * PI;
 
         return rotation;
+    }
+
+    // can return -1, 0 or 1
+    int random_binominal()
+    {
+        return (rand()%2) - (rand()%2);
     }
 } // Anonymous NS
 
@@ -266,7 +285,7 @@ void kinematic_wander(unsigned army_id, glm::vec2 target_pos)
     {
         v[i] = convert_to_vec2(o[i]);
 
-        r[i] = (rand()%2) - (rand()%2);
+        r[i] = random_binominal();
     }
 }
 
@@ -472,5 +491,42 @@ void look_where_you_going(unsigned army_id)
     for(unsigned i=0;i<army_size;++i)
     {
         align(army_id, v[i]);
+    }
+}
+
+void wander(unsigned army_id)
+{
+    ARMY_EXIST(army_id);
+
+    constexpr float wander_rate{2.0f};
+    constexpr float wander_radius{10.0f};
+    constexpr float wander_offset{10.0f};
+    constexpr float max_acceleration{3.0f};
+
+    auto sl = get_steering_linear(army_id);
+
+    auto const o = get_orientation(army_id);
+    auto const p = get_position(army_id);
+    auto const army_size = ARMY_INFO[army_id].m_army_size;
+
+    // to retain this values between runs
+    float* wander_orientation =
+     reinterpret_cast<float*>(allocate_once(army_id, army_size * sizeof(float)));
+
+    for(unsigned i=0;i<army_size;++i)
+    {
+        wander_orientation[i] += random_binominal() * wander_rate;
+ 
+        float const target_orientation = wander_orientation[i] + o[i];
+
+        // point in front of character orientation
+        // with wander_offset distance
+        glm::vec2 target = p[i] + (wander_offset * convert_to_vec2(o[i]));
+
+        target += wander_radius * convert_to_vec2(target_orientation);
+
+        face(army_id, target);
+
+        sl[i] = max_acceleration * convert_to_vec2(o[i]);
     }
 }

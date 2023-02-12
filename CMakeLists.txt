@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.2)
 # Tweak - bug fix
 
 project(musket-meister
-        VERSION 0.5.0.0
+        VERSION 0.6.0.0
         LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 11)
