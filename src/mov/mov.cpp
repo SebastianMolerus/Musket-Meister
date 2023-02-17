@@ -8,16 +8,16 @@ namespace
 {
     constexpr unsigned ARMIES_MAX_SIZE = 10;
 
-	constexpr unsigned MEM_SIZE = 4096;
-	alignas(4) char MEMORY[MEM_SIZE];
-	char* MEMORY_PTR{ MEMORY };
+    constexpr unsigned MEM_SIZE = 4096;
+    alignas(4) char MEMORY[MEM_SIZE];
+    char* MEMORY_PTR{ MEMORY };
 
     void* allocate(size_t bytes)
     {
-	    if ((MEMORY_PTR + bytes) > &MEMORY[MEM_SIZE - 1]) assert(false);
-	    void* p = MEMORY_PTR;
-	    MEMORY_PTR += bytes;
-	    return p;
+    if ((MEMORY_PTR + bytes) > &MEMORY[MEM_SIZE - 1]) assert(false);
+    void* p = MEMORY_PTR;
+    MEMORY_PTR += bytes;
+    return p;
     }
 
     void* allocate_once(unsigned army_id, size_t bytes)
@@ -33,12 +33,12 @@ namespace
     }
 
     struct kinematic_data
-	{
-		glm::vec2* m_position;
-		glm::vec2* m_velocity;
-		float* m_orientation;
-		float* m_rotation;
-	};
+    {
+        glm::vec2* m_position;
+        glm::vec2* m_velocity;
+        float* m_orientation;
+        float* m_rotation;
+    };
 
     struct kinematic_steering
     {
