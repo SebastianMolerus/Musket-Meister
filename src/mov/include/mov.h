@@ -14,6 +14,18 @@ void set_formation(unsigned army_id, formation f, glm::vec2 spawn, float spacing
 
 void update_army(unsigned army_id, float dt);
 
+// Default : translate by position
+//           rotate    by orientation
+glm::mat4* calculate_models_p_o(unsigned army_id, float rotation_offset = 90.0f);
+
+// translate by position
+// rotate    by velocity
+glm::mat4* calculate_models_p_v(unsigned army_id, float rotation_offset = 90.0f);
+
+// translate by position
+// rotate    by steering linear
+glm::mat4* calculate_models_p_sl(unsigned army_id, float rotation_offset = 90.0f);
+
 glm::vec2* get_position(unsigned army_id);
 float* get_orientation(unsigned army_id);
 glm::vec2* get_steering_linear(unsigned army_id);
