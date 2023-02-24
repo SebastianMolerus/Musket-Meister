@@ -77,7 +77,7 @@ enum class ai_mode
     path_follow
 } g_ai_mode;
 
-void mouse_callback(GLFWwindow *window, double xpos, double ypos)
+void mouse_callback([[maybe_unused]] GLFWwindow *window, double xpos, double ypos)
 {
     double const x_ndc{(xpos / g_window_width) * 2.0f - 1};
     double const y_ndc{-((ypos / g_window_height) * 2.0f - 1)};
@@ -106,7 +106,7 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos)
     }
 }
 
-void mouse_click_callback(GLFWwindow *, int button, int action, int)
+void mouse_click_callback([[maybe_unused]] GLFWwindow *, int button, int action,[[maybe_unused]] int)
 {
     if (button == GLFW_MOUSE_BUTTON_1 && action == GLFW_PRESS)
     {
@@ -120,7 +120,11 @@ void mouse_click_callback(GLFWwindow *, int button, int action, int)
     }
 }
 
-void keyboard_key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
+void keyboard_key_callback([[maybe_unused]] GLFWwindow *window,
+ [[maybe_unused]]int key,
+ [[maybe_unused]]int scancode,
+ [[maybe_unused]]int action,
+ [[maybe_unused]]int mods)
 {
     switch (key)
     {
@@ -274,7 +278,7 @@ struct circle
         // bottom part
         float angle = 3.14;
         float const inc = 6.28 / res.size();
-        for (int i = res.size() / 2; i < res.size(); ++i)
+        for (auto i = res.size() / 2; i < res.size(); ++i)
         {
             res[i].x = R * cos(angle);
             res[i].y = R * sin(angle);
@@ -421,7 +425,7 @@ int main()
             kinematic_flee(green_army, g_mouse_world_pos);
             break;
         case ai_mode::kinematic_wander:
-            kinematic_wander(green_army, g_mouse_world_pos);
+            kinematic_wander(green_army);
             break;
         case ai_mode::kinematic_arrive:
             kinematic_arrive(green_army, g_mouse_world_pos);

@@ -35,7 +35,7 @@ glm::vec2* get_velocity(unsigned army_id);
 void kinematic_seek(unsigned army_id, glm::vec2 target_pos);
 void kinematic_flee(unsigned army_id, glm::vec2 target_pos);
 void kinematic_arrive(unsigned army_id, glm::vec2 target_pos);
-void kinematic_wander(unsigned army_id, glm::vec2 target_pos);
+void kinematic_wander(unsigned army_id);
 
 // Those are calculating velocities indirectly by using steerings
 void dynamic_seek(unsigned army_id, glm::vec2 target_pos);

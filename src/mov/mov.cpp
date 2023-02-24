@@ -7,33 +7,6 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <chrono>
-#include <thread>
-
-template <typename Duration>
-class Timer
-{
-    std::chrono::high_resolution_clock::time_point m_begin;
-    std::chrono::high_resolution_clock::time_point m_end;
-
-    auto get_duration() -> long long
-    {
-        return std::chrono::duration_cast<Duration>(m_end - m_begin).count();
-    }
-
-public:
-    explicit Timer()
-        : m_begin{std::chrono::high_resolution_clock::now()}
-    {
-    }
-
-    ~Timer()
-    {
-        m_end = std::chrono::high_resolution_clock::now();
-        std::cout << "Duration=" << get_duration() << std::endl;
-    }
-};
-
 namespace
 {
     constexpr unsigned ARMIES_MAX_SIZE = 10;
@@ -309,8 +282,6 @@ glm::vec2 *get_velocity(unsigned army_id)
 
 void kinematic_seek(unsigned army_id, glm::vec2 target_pos)
 {
-    using namespace std::chrono_literals;
-
     ARMY_EXIST(army_id);
 
     constexpr float max_velocity = 3.0f;
@@ -374,7 +345,7 @@ void kinematic_arrive(unsigned army_id, glm::vec2 target_pos)
         }
     }
 }
-void kinematic_wander(unsigned army_id, glm::vec2 target_pos)
+void kinematic_wander(unsigned army_id)
 {
     ARMY_EXIST(army_id);
 
@@ -485,7 +456,6 @@ void pursue(unsigned army_id, glm::vec2 target_pos, glm::vec2 target_velocity)
     auto const p = get_position(army_id);
     auto const v = get_velocity(army_id);
     auto const army_size = ARMY_INFO[army_id].m_army_size;
-    Timer<std::chrono::microseconds> t1;
     for (unsigned i = 0; i < army_size; ++i)
     {
         auto const direction = target_pos - p[i];
